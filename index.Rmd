@@ -1,0 +1,148 @@
+---
+title: "MachineLearning"
+author: "Petras Vaiciunas"
+date: "January 31, 2016"
+output: html_document
+---
+Practical Machine Learning Course Project
+Raya Matoorian
+
+November 20, 2015
+
+Introduction
+The goal of this project is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. Here with prediction modeling tried to find patterns in their behavior and quantify how well they do the practices.
+
+
+training data
+test data
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har.
+
+```{r}
+    setwd("C:/Users/pvaiciunas/Documents/R")
+    training <- read.csv('./Data/pml-training.csv', na.strings=c("NA","#DIV/0!",""))
+    testing  <- read.csv('./Data/pml-testing.csv',  na.strings=c("NA","#DIV/0!",""))
+```
+
+classe variable is the outcome and composed of five levels (A,B,C,D,E).
+
+```{r}
+    summary(training$classe)
+    
+##    A    B    C    D    E 
+## 5580 3797 3422 3216 3607
+```
+
+Feature Selection
+The dataset inclues variables that has less impact on prediction, thus we will exclude those variables with Near Zero Variance algorithm (NZV).
+
+```{r}
+    library(caret)
+## Warning: package 'caret' was built under R version 3.2.2
+## Loading required package: lattice
+## Warning: package 'lattice' was built under R version 3.2.2
+## Loading required package: ggplot2
+## Warning: package 'ggplot2' was built under R version 3.2.2
+# first we will remove variables with mostly NAs (threshold>75%)
+    subTraining <- training
+    for (i in 1:length(training)) {
+      if (sum(is.na(training[ , i])) / nrow(training) >= 0.75) {
+        for (j in 1:length(subTraining)) {
+          if (length(grep(names(training[i]), names(subTraining)[j]))==1) {
+            subTraining <- subTraining[ , -j]
+          }
+        }
+      }
+    }
+
+# then we remove columns that are obviously not predictors
+    subTraining2 <- subTraining[,8:length(subTraining)]
+
+#remove variables with near zero variance
+    NZV <- nearZeroVar(subTraining2, saveMetrics = TRUE)
+    keep <- names(subTraining2)
+    
+```
+
+Random Forest Model
+Since Random Forest Model is appropriate for building classification problems, training data used to fit a model and then cross validated by test dataset.
+
+```{r}
+    library(randomForest)
+## Warning: package 'randomForest' was built under R version 3.2.2
+## randomForest 4.6-12
+## Type rfNews() to see new features/changes/bug fixes.
+# Random Forest Model
+    set.seed(1234)
+    modFit <- randomForest(classe~., data = subTraining2)
+    print(modFit)
+## 
+## Call:
+##  randomForest(formula = classe ~ ., data = subTraining2) 
+##                Type of random forest: classification
+##                      Number of trees: 500
+## No. of variables tried at each split: 7
+## 
+##         OOB estimate of  error rate: 0.32%
+## Confusion matrix:
+##      A    B    C    D    E  class.error
+## A 5576    4    0    0    0 0.0007168459
+## B   13 3780    4    0    0 0.0044772189
+## C    0   11 3410    1    0 0.0035067212
+## D    0    0   21 3193    2 0.0071517413
+## E    0    0    0    6 3601 0.0016634322
+#cross validation with testing and training dataset
+    predict_test  <- predict(modFit, testing,  type = "class")
+    predict_train <- predict(modFit, training, type = "class")
+    confusionMatrix(training$classe, predict_train)
+## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 5580    0    0    0    0
+##          B    0 3797    0    0    0
+##          C    0    0 3422    0    0
+##          D    0    0    0 3216    0
+##          E    0    0    0    0 3607
+## 
+## Overall Statistics
+##                                      
+##                Accuracy : 1          
+##                  95% CI : (0.9998, 1)
+##     No Information Rate : 0.2844     
+##     P-Value [Acc > NIR] : < 2.2e-16  
+##                                      
+##                   Kappa : 1          
+##  Mcnemar's Test P-Value : NA         
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            1.0000   1.0000   1.0000   1.0000   1.0000
+## Specificity            1.0000   1.0000   1.0000   1.0000   1.0000
+## Pos Pred Value         1.0000   1.0000   1.0000   1.0000   1.0000
+## Neg Pred Value         1.0000   1.0000   1.0000   1.0000   1.0000
+## Prevalence             0.2844   0.1935   0.1744   0.1639   0.1838
+## Detection Rate         0.2844   0.1935   0.1744   0.1639   0.1838
+## Detection Prevalence   0.2844   0.1935   0.1744   0.1639   0.1838
+## Balanced Accuracy      1.0000   1.0000   1.0000   1.0000   1.0000
+```
+    
+As the summary shows, the fitted model on trainig data has 100% accuracy. At the end, this model used to predict on test dataset and the output will write on a text file in the project directory.
+
+```{r}
+    predict_Final <- predict(modFit, testing, type = "class")
+    print(predict_Final)
+##  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 
+##  B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B 
+## Levels: A B C D E
+    pml_write_files = function(x) {
+        n = length(x)
+        for (i in 1:n) {
+            filename = paste0("problem_id_", i, ".txt")
+            write.table(x[i], file=filename, quote=FALSE,
+                        row.names=FALSE, col.names=FALSE)
+        }
+    }
+
+    pml_write_files(predict_Final)
+```
