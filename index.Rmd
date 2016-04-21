@@ -1,21 +1,34 @@
 ---
 title: "MachineLearning"
 author: "Petras Vaiciunas"
-date: "January 31, 2016"
+date: "April 16, 2016"
 output: html_document
 ---
-Practical Machine Learning Course Project
-Raya Matoorian
-
-November 20, 2015
-
-Introduction
-The goal of this project is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. Here with prediction modeling tried to find patterns in their behavior and quantify how well they do the practices.
+# Practical Machine Learning Course Project
+##### April 2016
 
 
-training data
-test data
+## Introduction
+
+The goal of this project is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. 
+They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. Here with prediction modeling 
+tried to find patterns in their behavior and quantify how well they do the practices.
+
+The analysis will be using a random forest algorithm to predict the **classe** variable using the training data. This
+is essentially trying to predict what exercise is being done given the outputs of the wearable device. The obvious 
+application of this in the real world is that given a correct algorithm to predict movement, these wearables will
+accurately be able to tell what their person is doing.
+
+The analysis below will retain all the R code so that you can follow along :) (i.e. echo = TRUE)
+
+
+
+### Training and Test data
+
 The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har.
+It is composed of data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to
+perform barbell lifts correctly and incorrectly in 5 different ways. This is a great intro for analyzing the new wave
+of wearable devices and the data that they produce.
 
 ```{r}
     setwd("C:/Users/pvaiciunas/Documents/R")
@@ -23,7 +36,11 @@ The data for this project come from this source: http://groupware.les.inf.puc-ri
     testing  <- read.csv('./Data/pml-testing.csv',  na.strings=c("NA","#DIV/0!",""))
 ```
 
-classe variable is the outcome and composed of five levels (A,B,C,D,E).
+
+As mentioned earlier, the **classe** variable is what we're interested in. The **classe** variable is the outcome 
+and composed of five levels (A,B,C,D,E). These can be interpreted as the activity the person is performing.
+We can take a look at the distribution of these with the following:
+
 
 ```{r}
     summary(training$classe)
@@ -32,16 +49,15 @@ classe variable is the outcome and composed of five levels (A,B,C,D,E).
 ## 5580 3797 3422 3216 3607
 ```
 
-Feature Selection
-The dataset inclues variables that has less impact on prediction, thus we will exclude those variables with Near Zero Variance algorithm (NZV).
+### Feature Selection
+
+The dataset inclues variables that has less impact on prediction, thus we will exclude those variables with Near Zero Variance algorithm (NZV). We want to remove anything with mostly NAs (there are a lot occassionaly. The threshold for this will be
+>75%. We can also take out the columns that are clearly not predictors. Then the NZV algorithm will take care of the rest :)
+
 
 ```{r}
     library(caret)
-## Warning: package 'caret' was built under R version 3.2.2
-## Loading required package: lattice
-## Warning: package 'lattice' was built under R version 3.2.2
-## Loading required package: ggplot2
-## Warning: package 'ggplot2' was built under R version 3.2.2
+
 # first we will remove variables with mostly NAs (threshold>75%)
     subTraining <- training
     for (i in 1:length(training)) {
@@ -63,14 +79,22 @@ The dataset inclues variables that has less impact on prediction, thus we will e
     
 ```
 
-Random Forest Model
-Since Random Forest Model is appropriate for building classification problems, training data used to fit a model and then cross validated by test dataset.
+### Random Forest Model
+
+The Random Forest algorithm is fantastic for classification problems. It's much more robust than a simple tree
+and it more often than not outperforms more complicated algorithms that are computationally much more complex.
+Here we use the training data to fit a model and then cross validate by the test dataest for robustness.
+
+The outputs of this are shown below in the code. The confusion matrix is of special interest here. After
+running only the random forest model, we're looking at an error rate of about 1/3rd. However, post
+cross validation, we are able to boost up the prediciton accuracy to near 100%!!!!
+
+The code below shows the steps taken:
+
 
 ```{r}
     library(randomForest)
-## Warning: package 'randomForest' was built under R version 3.2.2
-## randomForest 4.6-12
-## Type rfNews() to see new features/changes/bug fixes.
+
 # Random Forest Model
     set.seed(1234)
     modFit <- randomForest(classe~., data = subTraining2)
@@ -90,10 +114,12 @@ Since Random Forest Model is appropriate for building classification problems, t
 ## C    0   11 3410    1    0 0.0035067212
 ## D    0    0   21 3193    2 0.0071517413
 ## E    0    0    0    6 3601 0.0016634322
+
 #cross validation with testing and training dataset
     predict_test  <- predict(modFit, testing,  type = "class")
     predict_train <- predict(modFit, training, type = "class")
     confusionMatrix(training$classe, predict_train)
+
 ## Confusion Matrix and Statistics
 ## 
 ##           Reference
@@ -127,7 +153,12 @@ Since Random Forest Model is appropriate for building classification problems, t
 ## Balanced Accuracy      1.0000   1.0000   1.0000   1.0000   1.0000
 ```
     
-As the summary shows, the fitted model on trainig data has 100% accuracy. At the end, this model used to predict on test dataset and the output will write on a text file in the project directory.
+    
+    
+You can see in this summary above what I was talking about with the 100% accuracy!!
+We can use this model now on the test dataset to predict what the **classe** outcome is.
+The results here are printed to a text file so that we can use the results for the quiz 
+associated with this assignment. 
 
 ```{r}
     predict_Final <- predict(modFit, testing, type = "class")
@@ -146,3 +177,12 @@ As the summary shows, the fitted model on trainig data has 100% accuracy. At the
 
     pml_write_files(predict_Final)
 ```
+
+### Conclusion
+
+Overall, by using a random forest model, and cross validation, we are able to predict the **classe** variables
+with almost perfect accuracy. Going into this assignment I was skeptical how an algorithm would perform with what
+was seemingly messy data. The fact that a person was able to perform the exercies incorrectly (on purpose) 
+definitely adds noice to the data. But overall, the robustness that cross validation brings to random forest
+was enough to overcome this drawback, and an overall fantastic result arose. Prediction accuracy went up to
+100%, and the **classe** outcome was able to be predicted in all of the test data. 
